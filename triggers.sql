@@ -11,3 +11,7 @@ BEGIN
 END//
 
 DELIMITER ;
+
+SET @result1 = '';
+CALL update_passenger_class(1, 'Business', @result1);
+SELECT @result1;

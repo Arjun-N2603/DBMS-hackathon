@@ -1,5 +1,7 @@
 DELIMITER //
 
+--question 5
+
 CREATE PROCEDURE update_seat_preference(
     IN p_passenger_id INT,
     IN p_new_preference VARCHAR(10)
@@ -30,6 +32,7 @@ BEGIN
         SET MESSAGE_TEXT = 'Passenger not found';
     END IF;
 END //
+
 
 CREATE FUNCTION calculate_discount(
     loyalty_points INT,
@@ -64,6 +67,8 @@ FROM
     LEFT JOIN Loyalty_Program lp ON p.passenger_id = lp.passenger_id //
 
 -- question 8
+
+DROP PROCEDURE IF EXISTS update_passenger_class;
 
 CREATE PROCEDURE update_passenger_class(
     IN p_passenger_id INT,
@@ -110,3 +115,5 @@ BEGIN
 END //
 
 DELIMITER ;
+
+
