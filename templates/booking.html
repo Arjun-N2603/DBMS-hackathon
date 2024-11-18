@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SkyHigh Airlines - Booking</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        .form-group { margin-bottom: 15px; }
+        select, input { width: 200px; padding: 5px; }
+        button { padding: 10px 20px; }
+    </style>
+</head>
+<body>
+    <h1>Flight Booking</h1>
+    <form id="bookingForm">
+        <div class="form-group">
+            <label>Flight:</label>
+            <select id="flight_id" name="flight_id" required>
+                <option value="">Select Flight</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>First Name:</label>
+            <input type="text" id="first_name" name="first_name" required>
+        </div>
+        <div class="form-group">
+            <label>Last Name:</label>
+            <input type="text" id="last_name" name="last_name" required>
+        </div>
+        <div class="form-group">
+            <label>Seat Preference:</label>
+            <select id="seat_preference" name="seat_preference" required>
+                <option value="Window">Window</option>
+                <option value="Aisle">Aisle</option>
+                <option value="Middle">Middle</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Class:</label>
+            <select id="class" name="class" required>
+                <option value="Economy">Economy</option>
+                <option value="Business">Business</option>
+                <option value="First">First</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Available Seats:</label>
+            <select id="seat_number" name="seat_number" required>
+                <option value="">Select Seat</option>
+            </select>
+        </div>
+        <button type="submit">Book Flight</button>
+    </form>
+    <div id="message"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/get_flights')
+                .then(response => response.json())
+                .then(flights => {
+                    const flightSelect = document.getElementById('flight_id');
+                    flights.forEach(flight => {
+                        flightSelect.innerHTML += `<option value="${flight.flight_id}">${flight.flight_number} (${flight.source} to ${flight.destination})</option>`;
+                    });
+                });
+
+            document.getElementById('flight_id').addEventListener('change', function() {
+                const flightId = this.value;
+                fetch(`/get_available_seats/${flightId}`)
+                    .then(response => response.json())
+                    .then(seats => {
+                        const seatSelect = document.getElementById('seat_number');
+                        seatSelect.innerHTML = '<option value="">Select Seat</option>';
+                        seats.forEach(seat => {
+                            seatSelect.innerHTML += `<option value="${seat.seat_number}">${seat.seat_number}</option>`;
+                        });
+                    });
+            });
+
+            document.getElementById('bookingForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const bookingData = Object.fromEntries(formData);
+
+                fetch('/book_flight', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(bookingData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('message').innerHTML = data.message;
+                    if(data.status === 'success') {
+                        this.reset();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
