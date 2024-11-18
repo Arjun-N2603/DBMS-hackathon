@@ -63,4 +63,50 @@ FROM
     Passengers p
     LEFT JOIN Loyalty_Program lp ON p.passenger_id = lp.passenger_id //
 
+-- question 8
+
+CREATE PROCEDURE update_passenger_class(
+    IN p_passenger_id INT,
+    IN p_new_class VARCHAR(20),
+    OUT p_result VARCHAR(100)
+)
+BEGIN
+    DECLARE current_class VARCHAR(20);
+    DECLARE exit handler FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET p_result = 'Error: Transaction rolled back';
+    END;
+
+    -- Start transaction with highest isolation level
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+    START TRANSACTION;
+
+    -- Check if passenger exists and get current class
+    SELECT class INTO current_class
+    FROM Passengers
+    WHERE passenger_id = p_passenger_id
+    FOR UPDATE;  -- Lock the row
+
+    IF current_class IS NULL THEN
+        SET p_result = 'Error: Passenger not found';
+        ROLLBACK;
+    ELSE
+        -- Validate new class
+        IF p_new_class NOT IN ('Economy', 'Business', 'First') THEN
+            SET p_result = 'Error: Invalid class specification';
+            ROLLBACK;
+        ELSE
+            -- Perform the update
+            UPDATE Passengers
+            SET class = p_new_class
+            WHERE passenger_id = p_passenger_id;
+
+            SET p_result = CONCAT('Successfully updated class from ', 
+                                current_class, ' to ', p_new_class);
+            COMMIT;
+        END IF;
+    END IF;
+END //
+
 DELIMITER ;
