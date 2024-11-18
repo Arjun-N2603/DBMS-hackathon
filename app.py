@@ -33,16 +33,23 @@ def index():
 @app.route('/get_flights')
 def get_flights():
     try:
-        cursor.execute("SELECT flight_id, flight_number, source, destination FROM Flights")
+        cursor.execute("""
+            SELECT flight_id, flight_number, source, destination, 
+                   departure_time, arrival_time, class 
+            FROM Flights
+        """)
         flights = cursor.fetchall()
         return jsonify([{
             'flight_id': flight[0],
             'flight_number': flight[1],
             'source': flight[2],
-            'destination': flight[3]
+            'destination': flight[3],
+            'departure_time': flight[4].strftime('%Y-%m-%d %H:%M'),
+            'arrival_time': flight[5].strftime('%Y-%m-%d %H:%M'),
+            'class': flight[6]
         } for flight in flights])
     except Error as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/get_available_seats/<int:flight_id>')
 def get_available_seats(flight_id):
@@ -62,25 +69,50 @@ def book_flight():
     try:
         data = request.json
         
+        # Validate seat availability before booking
+        cursor.execute("""
+            SELECT status FROM Seat_Allocation 
+            WHERE flight_id = %s AND seat_number = %s
+        """, (data['flight_id'], data['seat_number']))
+        
+        seat_status = cursor.fetchone()
+        if not seat_status or seat_status[0] != 'Available':
+            return jsonify({
+                'status': 'error',
+                'message': 'Selected seat is not available'
+            }), 400
+
         # Insert new passenger
         cursor.execute("""
-            INSERT INTO Passengers (passenger_id, first_name, last_name, seat_preference, class)
-            VALUES (NULL, %s, %s, %s, %s)
+            INSERT INTO Passengers (first_name, last_name, seat_preference, class)
+            VALUES (%s, %s, %s, %s)
         """, (data['first_name'], data['last_name'], data['seat_preference'], data['class']))
         
         passenger_id = cursor.lastrowid
         
         # Create booking
         cursor.execute("""
-            INSERT INTO Booking (booking_id, flight_id, passenger_id, seat_number)
-            VALUES (NULL, %s, %s, %s)
+            INSERT INTO Booking (flight_id, passenger_id, seat_number)
+            VALUES (%s, %s, %s)
         """, (data['flight_id'], passenger_id, data['seat_number']))
+        
+        # Update seat status
+        cursor.execute("""
+            UPDATE Seat_Allocation 
+            SET status = 'Booked'
+            WHERE flight_id = %s AND seat_number = %s
+        """, (data['flight_id'], data['seat_number']))
         
         mydb.commit()
         
         return jsonify({
             'status': 'success',
-            'message': 'Booking successful!'
+            'message': 'Flight booked successfully!',
+            'booking_details': {
+                'passenger_id': passenger_id,
+                'flight_id': data['flight_id'],
+                'seat_number': data['seat_number']
+            }
         })
     except Error as e:
         mydb.rollback()
